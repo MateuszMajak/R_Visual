@@ -1,9 +1,9 @@
 
 An interactive Visualization of Formula 1 Data
 
-Mateusz Majak 384912
+Mateusz Majak 38****
 
-Nomthunzi Moyo	417126	
+Nomthunzi Moyo	41****	
  
 Data
  The dataset consists of all data on the Formula 1 races, drivers, constructors, qualifying, circuits, lap times, pit stops, championships from 1950 till the latest 2020 season.
