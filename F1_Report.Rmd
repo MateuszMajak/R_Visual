@@ -2,7 +2,16 @@
 title: "An interactive Formula 1 Analysis"
 author: "Nomthunzi Moyo and Mateusz Majak"
 date: "22 11 2020"
-output: html_document
+output: 
+  html_document:
+    number_sections: true
+    fig_caption: true
+    toc: true
+    fig_width: 7
+    fig_height: 4.5
+    theme: cosmo
+    highlight: tango
+    code_folding: hide
 runtime: shiny
 ---
 
@@ -10,50 +19,67 @@ runtime: shiny
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-This R Markdown document is made interactive using Shiny. Unlike the more traditional workflow of creating static reports, you can now create documents that allow your readers to change the assumptions underlying your analysis and see the results immediately. 
 
-To learn more, see [Interactive Documents](http://rmarkdown.rstudio.com/authoring_shiny.html).
+# About the dataset
+The dataset used in this project consists of information about F1 races statistics
+from 1950 until the latest 2020 season. It was shared by Vopani on the Kaggle 
+platform and is available [here](https://www.kaggle.com/rohanrao/formula-1-world-championship-1950-2020).
+The whole data comes from [ergast website](http://ergast.com/mrd/) and is divided into
+13 csv files:
 
-## Inputs and Outputs
+* circuits
+* constructor_results
+* constructor_standings
+* constructors
+* driver_standings
+* drivers
+* lap_times
+* pit_stops
+* qualifying
+* races
+* results
+* seasons
+* status
 
-You can embed Shiny inputs and outputs in your document. Outputs are automatically updated whenever inputs change.  This demonstrates how a standard R plot can be made interactive by wrapping it in the Shiny `renderPlot` function. The `selectInput` and `sliderInput` functions create the input widgets used to drive the plot.
+With such amount of data, we will try to answer the following questions:
 
-```{r eruptions, echo=FALSE}
-inputPanel(
-  selectInput("n_breaks", label = "Number of bins:",
-              choices = c(10, 20, 35, 50), selected = 20),
-  
-  sliderInput("bw_adjust", label = "Bandwidth adjustment:",
-              min = 0.2, max = 2, value = 1, step = 0.2)
-)
+* **How has the competition and level of F1 changed over the years?**
+* **Is F1 currently being won in qualifying?**
+* **Do the differences between the cars decrease over the years?**
+* **Which F1 circuits provide a more even fight?**
 
-renderPlot({
-  hist(faithful$eruptions, probability = TRUE, breaks = as.numeric(input$n_breaks),
-       xlab = "Duration (minutes)", main = "Geyser eruption duration")
-  
-  dens <- density(faithful$eruptions, adjust = input$bw_adjust)
-  lines(dens, col = "blue")
-})
+# Preparations {.tabset .tabset-fade .tabset-pills}
+
+## Load libraries
+We load multiple libraries for data manipulation and visualisation together with 
+tools for data modelling.
+
+```{r message = FALSE}
+
+# data manipulation
+library(dplyr)
+library(tidyr)
+
+# Interactivity
+library(plotly)
+library(crosstalk)
+library(DT)
+
+#Shiny App
+library(shiny)
+
+#visualisations
+library(ggplot2)
+library(RColorBrewer)
+library(ggthemes)
 ```
 
-## Embedded Application
+## Load Data
+```{r message = FALSE}
 
-It's also possible to embed an entire Shiny application within an R Markdown document using the `shinyAppDir` function. This example embeds a Shiny application located in another directory:
-
-```{r tabsets, echo=FALSE}
-shinyAppDir(
-  system.file("examples/06_tabsets", package = "shiny"),
-  options = list(
-    width = "100%", height = 550
-  )
-)
 ```
 
-Note the use of the `height` parameter to determine how much vertical space the embedded application should occupy.
+# Dataset preparation
 
-You can also use the `shinyApp` function to define an application inline rather then in an external directory.
-
-In all of R code chunks above the `echo = FALSE` attribute is used. This is to prevent the R code within the chunk from rendering in the document alongside the Shiny components.
-
-
+# EDA
 
