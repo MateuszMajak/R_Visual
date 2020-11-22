@@ -1,0 +1,57 @@
+
+An interactive Visualization of Formula 1 Data
+
+Mateusz Majak 384912
+
+Nomthunzi Moyo	417126	
+ 
+Data
+ The dataset consists of all data on the Formula 1 races, drivers, constructors, qualifying, circuits, lap times, pit stops, championships from 1950 till the latest 2020 season.
+
+source: https://www.kaggle.com/rohanrao/formula-1-world-championship-1950-2020
+
+Methodology
+ We aim to produce a project that will be in the form of an R markdown report that uses the R visualization functions to answer the following questions amongst others: 
+
+
+- Question A: How has the competition and level of F1 changed over the years?
+- Question B: Is F1 currently being won in qualifying?
+- Question C: Do the differences between the cars decrease over the years?
+- Question D: Which F1 circuits provide a more even fight?
+
+To summarise all of this we will create various interactive dashboards that allow the user to view a comparison of the results of drivers and teams across seasons, analytical dashboards that show descriptive statistics of drivers comparison having an option to choose the drivers and see their statistics, 
+and graphs. The dashboard will use ggplot2 and HTML widgets (including plotly plots optionally) in R and will have theme edits to produce color lineplot with Year and Team filter option. We will also use maps in ggplot2 to show a map plot of number of championships and wins of drivers across the world.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Introduction to ggplot2 (functions: ggplot(), aes(), geom_point(), ggsave())
+Theme editing (functions: themes(), guide_legend(), guides(), labs(), packages: extrafont, ggthemes)
+Labels on the graph (functions: geom_text(), geom_label(), geom_text_repel(), geom_label_repel()
+Scale editing: (family of scale_* functions)
+Barplot and pie plot (functions: geom_bar() and geom_arcpie())
+Linear plot (functions: geom_line(), geom_vline(), geom_hline(), geom_rect())
+Multiple graphs in ggplot2 (multiplot(), gridarrange(), viewport())
+Estimating trends with ggplot2 (geom_smooth())
+Visualising distributions: (functions: geom_histogram(), geom_density(), geom_boxplot(), geom_violin())
+Maps in ggplot2 (functions: geom_sf)
+Stat functions (stat_ family function)
+Interactive visualisation in ggplot2 (packages: ggiraph ), htmlwidgets in R
+Overview of advanced plots in R (ggplot extentions)
