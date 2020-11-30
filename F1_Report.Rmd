@@ -76,10 +76,161 @@ library(ggthemes)
 
 ## Load Data
 ```{r message = FALSE}
+#results - main csv file
+results <- read.csv('F1_data/results.csv',sep=',', stringsAsFactors=F)
+results$fastestLapSpeed[which(results$fastestLapSpeed=="\\N")] <- NA
+results$fastestLapSpeed <- as.numeric(results$fastestLapSpeed)
 
+#constructor_results
+constructor_results <- read.csv('F1_data/constructor_results.csv',sep=',', stringsAsFactors=F)
+
+
+#constructor_standings
+constructor_standings <- read.csv('F1_data/constructor_standings.csv',sep=',', stringsAsFactors=F)
+
+#constructors
+constructors <- read.csv('F1_data/constructors.csv',sep=',', stringsAsFactors=F)
+
+#driver_standings
+driver_standings <- read.csv('F1_data/driver_standings.csv',sep=',', stringsAsFactors=F)
+
+#drivers
+drivers <- read.csv('F1_data/drivers.csv',sep=',', stringsAsFactors=F)
+
+#lap_times
+lap_times <- read.csv('F1_data/lap_times.csv',sep=',', stringsAsFactors=F)
+
+#pit_stops
+pit_stops <- read.csv('F1_data/pit_stops.csv',sep=',', stringsAsFactors=F)
+
+#qualifying
+qualifying <- read.csv('F1_data/qualifying.csv',sep=',', stringsAsFactors=F)
+
+#races
+races <- read.csv('F1_data/races.csv',sep=',', stringsAsFactors=F)
+
+#seasons
+seasons <- read.csv('F1_data/seasons.csv',sep=',', stringsAsFactors=F)
+
+#status
+status <- read.csv('F1_data/status.csv',sep=',', stringsAsFactors=F)
 ```
 
-# Dataset preparation
+## Data manipulation
+```{r}
+#results - main csv file
+results$fastestLapSpeed[which(results$fastestLapSpeed=="\\N")] <- NA
+results$fastestLapSpeed <- as.numeric(results$fastestLapSpeed)
+
+#constructor_results
+
+#constructor_standings
+
+#constructors
+
+#driver_standings
+
+#drivers
+
+#lap_times
+
+#pit_stops
+
+#qualifying
+
+#races
+
+#seasons
+
+#status
+```
+
+# Data preview {.tabset .tabset-fade .tabset-pills}
+
+## Results
+```{r}
+datatable(results[1:100,] %>%                      
+    arrange(resultId), 
+    options = list(pageLength = 10, scrollX = T)) 
+```
+
+## constructor_results
+```{r}
+datatable(constructor_results[1:100,] %>%                      
+    arrange(constructorResultsId), 
+    options = list(pageLength = 10, scrollX = T)) 
+```
+
+## constructor_standings
+```{r}
+datatable(constructor_standings[1:100,] %>%                      
+    arrange(constructorStandingsId), 
+    options = list(pageLength = 10, scrollX = T)) 
+```
+
+## constructors
+```{r}
+datatable(constructors[1:100,] %>%                      
+    arrange(constructorId), 
+    options = list(pageLength = 10, scrollX = T)) 
+```
+
+## driver_standings
+```{r}
+datatable(driver_standings[1:100,] %>%                      
+    arrange(driverStandingsId), 
+    options = list(pageLength = 10, scrollX = T)) 
+```
+
+## drivers
+```{r}
+datatable(drivers[1:100,] %>%                      
+    arrange(driverId), 
+    options = list(pageLength = 10, scrollX = T)) 
+```
+
+## lap_times
+```{r}
+datatable(lap_times[1:100,] %>%                      
+    arrange(raceId), 
+    options = list(pageLength = 10, scrollX = T)) 
+```
+
+## pit_stops
+```{r}
+datatable(pit_stops[1:100,] %>%                      
+    arrange(raceId), 
+    options = list(pageLength = 10, scrollX = T)) 
+```
+
+## qualifying
+```{r}
+datatable(qualifying[1:100,] %>%                      
+    arrange(qualifyId), 
+    options = list(pageLength = 10, scrollX = T)) 
+```
+
+## races
+```{r}
+datatable(races[1:100,] %>%                      
+    arrange(raceId), 
+    options = list(pageLength = 10, scrollX = T)) 
+```
+
+## seasons
+```{r}
+datatable(seasons[1:100,] %>%                      
+    arrange(year), 
+    options = list(pageLength = 10, scrollX = T)) 
+```
+
+## status
+First 100 rows
+```{r}
+datatable(status[1:100,] %>%                      
+    arrange(statusId), 
+    options = list(pageLength = 10, scrollX = T)) 
+```
 
 # EDA
 
