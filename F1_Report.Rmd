@@ -41,6 +41,8 @@ The whole data comes from [ergast website](http://ergast.com/mrd/) and is divide
 * seasons
 * status
 
+It is a real challenge to compare drivers, cars and teams, considering very complex structure of the car and the number of changing factors on the track.
+
 With such amount of data, we will try to answer the following questions:
 
 * **How has the competition and level of F1 changed over the years?**
@@ -72,18 +74,20 @@ library(shiny)
 library(ggplot2)
 library(RColorBrewer)
 library(ggthemes)
+
+#maps
+library(ggmap)
+library(maps)
+
 ```
 
 ## Load Data
 ```{r message = FALSE}
 #results - main csv file
 results <- read.csv('F1_data/results.csv',sep=',', stringsAsFactors=F)
-results$fastestLapSpeed[which(results$fastestLapSpeed=="\\N")] <- NA
-results$fastestLapSpeed <- as.numeric(results$fastestLapSpeed)
 
 #constructor_results
 constructor_results <- read.csv('F1_data/constructor_results.csv',sep=',', stringsAsFactors=F)
-
 
 #constructor_standings
 constructor_standings <- read.csv('F1_data/constructor_standings.csv',sep=',', stringsAsFactors=F)
@@ -114,6 +118,9 @@ seasons <- read.csv('F1_data/seasons.csv',sep=',', stringsAsFactors=F)
 
 #status
 status <- read.csv('F1_data/status.csv',sep=',', stringsAsFactors=F)
+
+#circuits
+circuits <- read.csv('F1_data/circuits.csv',sep=',', stringsAsFactors=F)
 ```
 
 ## Data manipulation
@@ -123,6 +130,7 @@ results$fastestLapSpeed[which(results$fastestLapSpeed=="\\N")] <- NA
 results$fastestLapSpeed <- as.numeric(results$fastestLapSpeed)
 
 #constructor_results
+
 
 #constructor_standings
 
@@ -139,10 +147,26 @@ results$fastestLapSpeed <- as.numeric(results$fastestLapSpeed)
 #qualifying
 
 #races
+races$date<-as.Date(races$date)
+races$name<-gsub("Grand Prix","GP",races$name)
 
 #seasons
 
 #status
+
+#connecting main sets
+races <- left_join(
+  races %>%
+    select(-name, -url), 
+  circuits %>%
+    select(-url), by='circuitId')
+
+results_races<-left_join(
+  results %>%
+    dplyr::select(-time), 
+  races %>%
+    dplyr::select(-time), by='raceId')
+
 ```
 
 # Data preview {.tabset .tabset-fade .tabset-pills}
@@ -234,3 +258,31 @@ datatable(status[1:100,] %>%
 
 # EDA
 
+## F1 across the World
+
+In the last 70 years, the competition in F1 has been held on 6 continents.
+```{r, warning=FALSE, fig.width=10}
+#circuits map
+#Change longitude column name for cohesion
+colnames(results_races)[27] <- "lon"
+# generate worldwide dots
+lat <- data_frame(lat = seq(-90, 90, by = 1.5))
+lon <- data_frame(lon = seq(-170, 180, by = 1.5))
+dots <- merge(lat, lon, all = TRUE)  
+
+# exclude water-based dots 
+dots %>%
+  mutate(country = map.where("world", lon, lat),
+         lakes = map.where("lakes", lon, lat)) %>%
+  filter(!is.na(country) & is.na(lakes)) %>% 
+  select(-lakes) ->
+  dots
+
+# plot the data
+ggplot(dots, aes(x = lon, y = lat)) + 
+geom_point(col = "white", size = 0.25) +
+geom_point(data = results_races, colour = "red", alpha = .009, size = 5) + 
+theme_void() +
+theme(panel.background = element_rect(fill = "#484848"),
+      plot.background = element_rect(fill = "#484848"))
+```
