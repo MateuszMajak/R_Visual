@@ -129,16 +129,33 @@ circuits <- read.csv('F1_data/circuits.csv',sep=',', stringsAsFactors=F)
 results$fastestLapSpeed[which(results$fastestLapSpeed=="\\N")] <- NA
 results$fastestLapSpeed <- as.numeric(results$fastestLapSpeed)
 
-#constructor_results
+#constructor_results_merged
+constructor_results_merged <- left_join(
+  constructor_results, constructors %>%
+    dplyr::select(-url) %>%
+    dplyr::rename(constructor = name),
+  by = 'constructorId'
+)
 
+constructor_results_merged <- left_join(
+  constructor_results_merged, races %>%
+    dplyr::rename(race_name = name),
+  by = 'raceId'
+)
 
-#constructor_standings
+constructor_results_merged <- left_join(
+  constructor_results_merged, constructor_standings %>%
+    dplyr::rename(constructor_points = points),
+  by = c('constructorId','raceId')
+)
 
-#constructors
-
-#driver_standings
+constructor_results_merged$date <- as.Date(constructor_results_merged$date)
 
 #drivers
+drivers <- left_join(
+  drivers %>%
+    dplyr::select(-url), driver_standings,
+  by = 'driverId')
 
 #lap_times
 
@@ -148,7 +165,7 @@ results$fastestLapSpeed <- as.numeric(results$fastestLapSpeed)
 
 #races
 races$date<-as.Date(races$date)
-races$name<-gsub("Grand Prix","GP",races$name)
+races$name<-gsub("Grand Prix", "GP", races$name)
 
 #seasons
 
@@ -157,16 +174,28 @@ races$name<-gsub("Grand Prix","GP",races$name)
 #connecting main sets
 races <- left_join(
   races %>%
-    select(-name, -url), 
+    dplyr::select(-name, -url), 
   circuits %>%
-    select(-url), by='circuitId')
+    dplyr::select(-url),
+  by = 'circuitId')
 
-results_races<-left_join(
+results_races <- left_join(
   results %>%
     dplyr::select(-time), 
   races %>%
-    dplyr::select(-time), by='raceId')
+    dplyr::select(-time),
+  by = 'raceId')
 
+results_drivers <- left_join(
+    results, 
+    drivers %>%
+      dplyr::select(-points, -position, -positionText),
+    by = c('driverId', 'raceId')) 
+    
+results_drivers <- left_join(
+  results_drivers, races %>%
+    dplyr::select(-time),
+  by = 'raceId')
 ```
 
 # Data preview {.tabset .tabset-fade .tabset-pills}
@@ -286,3 +315,54 @@ theme_void() +
 theme(panel.background = element_rect(fill = "#484848"),
       plot.background = element_rect(fill = "#484848"))
 ```
+
+
+## Question A - How has the competition and level of F1 changed over the years?
+
+### Running sum of points for top 10 constructors
+```{r}
+# Teams running sum by wins/championships
+top10teams <- (aggregate(points ~ constructor, constructor_results_merged, sum) %>% 
+  arrange(desc(points)) %>% 
+  top_n(10))$constructor
+
+constructor_results_merged$top10 <- ifelse(
+  constructor_results_merged$constructor %in% top10teams,
+  constructor_results_merged$constructor,'Other')
+
+constructor_results_plotly <- highlight_key(constructor_results_merged %>% 
+  dplyr::filter(top10 != 'Other') %>% 
+  dplyr::select(year, date, constructor, points) %>% 
+  dplyr::group_by(constructor) %>% 
+  dplyr::arrange(date) %>% 
+  dplyr::mutate(PointSum = cumsum(points)) %>% 
+  dplyr::group_by(year, constructor) %>% 
+  dplyr::summarise(PointSum=max(PointSum)))
+
+gg <- constructor_results_plotly %>% 
+  ggplot(aes(year, PointSum, col = constructor, group = constructor)) +
+  geom_line(size=1, alpha = .5) +
+  geom_point(alpha=.5,size=.2)
+labs(x = "Year", y = "constructor") +
+  theme_tufte() +
+  NULL
+
+filter <- bscols(filter_select("constructor","Sum of points over years (select a constructor):",
+                               constructor_results_plotly, ~constructor, 
+                               multiple = TRUE),
+                 ggplotly(gg, dynamicTicks = TRUE),
+                 widths = c(15, 15)
+)
+bscols(filter)
+```
+
+## Question D - Which F1 circuits provide a more even fight?
+```{r}
+
+
+```
+
+
+
+
+
