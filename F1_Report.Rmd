@@ -146,6 +146,7 @@ constructor_results_merged <- left_join(
   by = c('constructorId','raceId')
 )
 constructor_results_merged$date <- as.Date(constructor_results_merged$date)
+
 #drivers
 drivers <- left_join(
   drivers %>%
@@ -172,6 +173,7 @@ results_races <- left_join(
   races %>%
     dplyr::select(-time),
   by = 'raceId')
+
 results_drivers <- left_join(
     results, 
     drivers %>%
@@ -316,6 +318,18 @@ constructor_results_merged$top10 <- ifelse(
   constructor_results_merged$constructor %in% top10teams,
   constructor_results_merged$constructor,'Other')
 
+constructor_results_merged %>%
+  dplyr::filter(top10 != 'Other') %>%
+  dplyr::select(year, date, constructor, points) %>%
+  dplyr::group_by(constructor) %>% 
+  dplyr::arrange(date) %>% 
+  dplyr::mutate(point_sum = cumsum(points)) %>%
+  dplyr::group_by(year, constructor) %>%
+  dplyr::summarise(point_sum=max(point_sum)) %>% 
+  ggplot(aes(x = year, y = point_sum, col = constructor, group = constructor)) +
+  geom_line(size=1, alpha = .5) +
+  geom_point(alpha=.5,size=.2)
+
 constructor_results_plotly <- highlight_key(constructor_results_merged %>% 
   dplyr::filter(top10 != 'Other') %>% 
   dplyr::select(year, date, constructor, points) %>% 
@@ -342,22 +356,25 @@ filter <- bscols(filter_select("constructor","Sum of points over years (select a
 bscols(filter)
 ```
 
-### Drivers difference
-```{r}
-top3drivers <- results_drivers %>% filter(position %in% c(1, 2, 3))
-
-# top3drivers$year_points <- (top3drivers %>%
-#   dplyr::group_by(driverRef, year) %>%
-#   dplyr::summarise(year_points = sum(points)))$year_points
-
-# ggplot(data=top3drivers,aes(x=year,y=points,color=position)) +
-#     geom_point()+
-#     geom_line(aes(group=year),size=1) +
-#     scale_x_continuous(breaks=seq(1950,2020,10)) +
-#     scale_y_continuous(breaks=seq(0,max(results_drivers$points),40)) +
-#     labs(title='Difference of points between 1st, 2nd and 3th place',
-#         subtitle='Most of the years the first place has won the tournament by a large margin.',
-#         y='Points',color='Position')
+### Top 25 drivers
+```{r warning=FALSE, message=FALSE}
+results_drivers %>% 
+  dplyr::select(points, driverRef, forename, surname, nationality, year) %>% 
+  tidyr::unite(full_name, c('forename', 'surname'), sep = ' ') %>% 
+  dplyr::group_by(full_name) %>% 
+  dplyr::summarise(year_points = sum(points)) %>% 
+  dplyr::filter(year_points > 0) %>% 
+  dplyr::top_n(25, year_points) %>% 
+  dplyr::arrange(year_points) %>% 
+  dplyr::mutate(full_name=factor(full_name, full_name)) %>%
+  ggplot(aes(x=full_name, y=year_points)) +
+  geom_segment( aes(x=full_name, xend=full_name, y=0, yend=year_points), color = 'grey') +
+  geom_point(color = 'red', size = 3) +
+  coord_flip() +
+  labs(x = 'Driver',
+       y = 'Sum of points',
+       title = 'Top 25 drivers by number of points in the career') +
+  theme(plot.title = element_text(hjust = .5))
 ```
 
 ## Question D - Which F1 circuits provide a more even fight?
