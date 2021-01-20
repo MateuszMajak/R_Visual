@@ -128,7 +128,6 @@ circuits <- read.csv('F1_data/circuits.csv',sep=',', stringsAsFactors=F)
 #results - main csv file
 results$fastestLapSpeed[which(results$fastestLapSpeed=="\\N")] <- NA
 results$fastestLapSpeed <- as.numeric(results$fastestLapSpeed)
-
 #constructor_results_merged
 constructor_results_merged <- left_join(
   constructor_results, constructors %>%
@@ -136,41 +135,30 @@ constructor_results_merged <- left_join(
     dplyr::rename(constructor = name),
   by = 'constructorId'
 )
-
 constructor_results_merged <- left_join(
   constructor_results_merged, races %>%
     dplyr::rename(race_name = name),
   by = 'raceId'
 )
-
 constructor_results_merged <- left_join(
   constructor_results_merged, constructor_standings %>%
     dplyr::rename(constructor_points = points),
   by = c('constructorId','raceId')
 )
-
 constructor_results_merged$date <- as.Date(constructor_results_merged$date)
-
 #drivers
 drivers <- left_join(
   drivers %>%
     dplyr::select(-url), driver_standings,
   by = 'driverId')
-
 #lap_times
-
 #pit_stops
-
 #qualifying
-
 #races
 races$date<-as.Date(races$date)
 races$name<-gsub("Grand Prix", "GP", races$name)
-
 #seasons
-
 #status
-
 #connecting main sets
 races <- left_join(
   races %>%
@@ -178,14 +166,12 @@ races <- left_join(
   circuits %>%
     dplyr::select(-url),
   by = 'circuitId')
-
 results_races <- left_join(
   results %>%
     dplyr::select(-time), 
   races %>%
     dplyr::select(-time),
   by = 'raceId')
-
 results_drivers <- left_join(
     results, 
     drivers %>%
@@ -354,6 +340,24 @@ filter <- bscols(filter_select("constructor","Sum of points over years (select a
                  widths = c(15, 15)
 )
 bscols(filter)
+```
+
+### Drivers difference
+```{r}
+top3drivers <- results_drivers %>% filter(position %in% c(1, 2, 3))
+
+# top3drivers$year_points <- (top3drivers %>%
+#   dplyr::group_by(driverRef, year) %>%
+#   dplyr::summarise(year_points = sum(points)))$year_points
+
+# ggplot(data=top3drivers,aes(x=year,y=points,color=position)) +
+#     geom_point()+
+#     geom_line(aes(group=year),size=1) +
+#     scale_x_continuous(breaks=seq(1950,2020,10)) +
+#     scale_y_continuous(breaks=seq(0,max(results_drivers$points),40)) +
+#     labs(title='Difference of points between 1st, 2nd and 3th place',
+#         subtitle='Most of the years the first place has won the tournament by a large margin.',
+#         y='Points',color='Position')
 ```
 
 ## Question D - Which F1 circuits provide a more even fight?
