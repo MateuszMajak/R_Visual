@@ -74,6 +74,7 @@ library(shiny)
 library(ggplot2)
 library(RColorBrewer)
 library(ggthemes)
+library(scales)
 
 #maps
 library(ggmap)
@@ -167,6 +168,7 @@ races <- left_join(
   circuits %>%
     dplyr::select(-url),
   by = 'circuitId')
+
 results_races <- left_join(
   results %>%
     dplyr::select(-time), 
@@ -375,6 +377,74 @@ results_drivers %>%
        y = 'Sum of points',
        title = 'Top 25 drivers by number of points in the career') +
   theme(plot.title = element_text(hjust = .5))
+```
+## Question B: Is F1 currently being won in qualifying?
+```{r warning=FALSE, message=FALSE}
+quali_races <- left_join(
+  results_races %>%
+    dplyr::mutate(race_position = positionOrder,
+                  grid_position = grid) %>% 
+    dplyr::select(driverId, raceId, date, grid_position, race_position),
+  qualifying %>%
+    dplyr::mutate(quali_position = position) %>% 
+    dplyr::select(driverId, raceId, quali_position),
+  by = c('raceId','driverId'))
+#101 points to gain from 1st to 10th place
+# quali_races %>% 
+#   dplyr::select(date, quali_position, race_position)
+
+quali_races %>% 
+  dplyr::select(date, grid_position, race_position) %>%
+  distinct() %>%
+  dplyr::mutate(
+    race_points = case_when(race_position == 1  ~ 25,
+                            race_position == 2  ~ 18,
+                            race_position == 3  ~ 15,
+                            race_position == 4  ~ 12,
+                            race_position == 5  ~ 10,
+                            race_position == 6  ~ 8,
+                            race_position == 7  ~ 6,
+                            race_position == 8  ~ 4,
+                            race_position == 9  ~ 2,
+                            race_position == 10 ~ 1,
+                            TRUE                ~ 0
+                            ),
+    grid_points = case_when(grid_position == 1  ~ 25,
+                            grid_position == 2  ~ 18,
+                            grid_position == 3  ~ 15,
+                            grid_position == 4  ~ 12,
+                            grid_position == 5  ~ 10,
+                            grid_position == 6  ~ 8,
+                            grid_position == 7  ~ 6,
+                            grid_position == 8  ~ 4,
+                            grid_position == 9  ~ 2,
+                            grid_position == 10 ~ 1,
+                            TRUE                ~ 0
+                            )
+    ) %>% 
+  dplyr::mutate(point_difference = race_points - grid_points) %>% 
+  dplyr::select(date, point_difference) %>% 
+  dplyr::filter(point_difference > 0) %>% 
+  dplyr::group_by(date) %>% 
+  dplyr::summarise(won_points_percentage = sum(point_difference)/101) %>% 
+  dplyr::arrange(date) %>%
+  ggplot(aes(x = date, y = won_points_percentage)) +
+  geom_line(size = .5, alpha = .5,  color = 'grey') +
+  geom_point(size = .5, alpha = .9, color = 'grey') +
+  geom_smooth(se = TRUE,
+              color = 'red') +
+  labs(x = 'Year',
+       y = '% of points gain after qualifying',
+       title = 'Percent of additional points gained after qualifying') +
+  scale_x_date(name = paste('Years', substr(min(quali_races$date),1,4),'-',substr(max(quali_races$date),1,4)),
+               date_breaks = "10 years", date_labels = "%Y",
+               date_minor_breaks = "5 years",
+               limits = c(min(quali_races$date), max = max(quali_races$date)),
+               expand=c(0,120)) +
+  scale_y_continuous(labels=scales::percent) +
+  theme(plot.title = element_text(hjust = .5))
+
+
 ```
 
 ## Question D - Which F1 circuits provide a more even fight?
