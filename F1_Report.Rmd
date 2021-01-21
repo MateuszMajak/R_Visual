@@ -446,7 +446,17 @@ quali_races %>%
 
 
 ```
-
+## Rounds that took the most time to complete (worst 10)
+# This plot is a scatter plot that illustrates the longest time it tool to complete a round in years
+```{r}
+# Grouped Bar Plot
+xoxo<- races %>% group_by(round)
+xoxo
+xoxo2<-head(xoxo[order(xoxo$time, decreasing= T),], n = 10)
+xoxo2
+ggplot(xoxo2, aes(x=round, y=year, color=year)) + 
+    geom_point(size=6)+ scale_fill_gradientn(colours=rainbow(100))
+ ```
 ## Question D - Which F1 circuits provide a more even fight?
 ```{r}
 
