@@ -358,6 +358,54 @@ filter <- bscols(filter_select("constructor","Sum of points over years (select a
 bscols(filter)
 ```
 
+```{r}
+#constructors running sum animated plot
+
+# Top teams running sum by wins/championships
+top10teams <- (aggregate(points ~ constructor, constructor_results_merged, sum) %>% 
+                 arrange(desc(points)) %>% 
+                 top_n(10))$constructor
+
+constructor_results_merged$top10 <- ifelse(
+  constructor_results_merged$constructor %in% top10teams,
+  constructor_results_merged$constructor,'Other')
+
+team_colors <- c("Benetton" = "#21783b", "Ferrari" = "#cf0e0e", "Force India" = "#d81676", 
+                 "Lotus F1" = "#010101", 'McLaren' = '#ffa113', 'Mercedes' = '#1fb1a7',
+                 'Red Bull' = '#00007e', 'Renault' = '#ffd700', 'Team Lotus' = '#b28c14',
+                 "Williams" = '#ffffff')
+
+anim <- constructor_results_merged %>%
+  dplyr::filter(top10 != 'Other') %>%
+  dplyr::select(year, date, constructor, points) %>%
+  dplyr::group_by(constructor) %>% 
+  dplyr::arrange(date) %>% 
+  dplyr::mutate(point_sum = cumsum(points)) %>%
+  dplyr::group_by(year, constructor) %>%
+  dplyr::summarise(point_sum=max(point_sum)) %>% 
+  ggplot(aes(x = year, y = point_sum, col = constructor, group = constructor)) +
+  geom_step(size=1, alpha = 1) +
+  geom_point(alpha=.5,size=.2) + 
+  scale_color_manual(values = team_colors) +
+  theme(plot.background = element_rect(fill = 'lightgrey'),
+        axis.line = element_line(color = 'black'),
+        panel.grid = element_line(color = 'grey'),
+        plot.title = element_text(size = 46, hjust = .5, face = 'bold', color = '#cf0e0e'),
+        axis.title = element_text(size = 19),
+        legend.title = element_text(size = 19),
+        legend.text = element_text(size = 17),
+        legend.background = element_rect(fill = 'lightgrey'),
+        legend.key = element_rect(color = 'grey')) +
+  labs(x = 'Year',
+       y = 'Points sum',
+       title = 'Running sum of constructors\' points') +
+  guides(color = guide_legend(title = 'Constructor')) + # now i add frame variable
+  gganimate::transition_reveal(year)
+
+animate(anim, height = 600, width =1080, nframes = 160, fps = 5)
+
+```
+
 ### Top 25 drivers
 ```{r warning=FALSE, message=FALSE}
 results_drivers %>% 
@@ -446,6 +494,7 @@ quali_races %>%
 
 
 ```
+
 ## Rounds that took the most time to complete (worst 10)
 # This plot is a scatter plot that illustrates the longest time it tool to complete a round in years
 ```{r}
