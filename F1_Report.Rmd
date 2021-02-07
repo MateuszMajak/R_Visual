@@ -67,6 +67,9 @@ library(plotly)
 library(crosstalk)
 library(DT)
 
+#animations
+library(gganimate)
+
 #Shiny App
 library(shiny)
 
@@ -75,6 +78,8 @@ library(ggplot2)
 library(RColorBrewer)
 library(ggthemes)
 library(scales)
+library(extrafont)
+loadfonts()
 
 #maps
 library(ggmap)
@@ -129,6 +134,7 @@ circuits <- read.csv('F1_data/circuits.csv',sep=',', stringsAsFactors=F)
 #results - main csv file
 results$fastestLapSpeed[which(results$fastestLapSpeed=="\\N")] <- NA
 results$fastestLapSpeed <- as.numeric(results$fastestLapSpeed)
+
 #constructor_results_merged
 constructor_results_merged <- left_join(
   constructor_results, constructors %>%
@@ -153,15 +159,12 @@ drivers <- left_join(
   drivers %>%
     dplyr::select(-url), driver_standings,
   by = 'driverId')
-#lap_times
-#pit_stops
-#qualifying
+
 #races
 races$date<-as.Date(races$date)
 races$name<-gsub("Grand Prix", "GP", races$name)
-#seasons
-#status
-#connecting main sets
+
+#results_races
 races <- left_join(
   races %>%
     dplyr::select(-name, -url), 
@@ -176,6 +179,7 @@ results_races <- left_join(
     dplyr::select(-time),
   by = 'raceId')
 
+#results_drivers
 results_drivers <- left_join(
     results, 
     drivers %>%
@@ -290,7 +294,7 @@ lon <- data_frame(lon = seq(-170, 180, by = 1.5))
 dots <- merge(lat, lon, all = TRUE)  
 
 # exclude water-based dots 
-dots %>%
+dots %>% 
   mutate(country = map.where("world", lon, lat),
          lakes = map.where("lakes", lon, lat)) %>%
   filter(!is.na(country) & is.na(lakes)) %>% 
@@ -310,7 +314,7 @@ theme(panel.background = element_rect(fill = "#484848"),
 ## Question A - How has the competition and level of F1 changed over the years?
 
 ### Running sum of points for top 10 constructors
-```{r}
+```{r, warning=FALSE, message=FALSE, fig.width=10}
 # Teams running sum by wins/championships
 top10teams <- (aggregate(points ~ constructor, constructor_results_merged, sum) %>% 
   arrange(desc(points)) %>% 
@@ -320,17 +324,18 @@ constructor_results_merged$top10 <- ifelse(
   constructor_results_merged$constructor %in% top10teams,
   constructor_results_merged$constructor,'Other')
 
-constructor_results_merged %>%
-  dplyr::filter(top10 != 'Other') %>%
-  dplyr::select(year, date, constructor, points) %>%
-  dplyr::group_by(constructor) %>% 
-  dplyr::arrange(date) %>% 
-  dplyr::mutate(point_sum = cumsum(points)) %>%
-  dplyr::group_by(year, constructor) %>%
-  dplyr::summarise(point_sum=max(point_sum)) %>% 
-  ggplot(aes(x = year, y = point_sum, col = constructor, group = constructor)) +
-  geom_line(size=1, alpha = .5) +
-  geom_point(alpha=.5,size=.2)
+# Static plot
+# constructor_results_merged %>%
+#   dplyr::filter(top10 != 'Other') %>%
+#   dplyr::select(year, date, constructor, points) %>%
+#   dplyr::group_by(constructor) %>% 
+#   dplyr::arrange(date) %>% 
+#   dplyr::mutate(point_sum = cumsum(points)) %>%
+#   dplyr::group_by(year, constructor) %>%
+#   dplyr::summarise(point_sum=max(point_sum)) %>% 
+#   ggplot(aes(x = year, y = point_sum, col = constructor, group = constructor)) +
+#   geom_line(size=1, alpha = .5) +
+#   geom_point(alpha=.5,size=.2)
 
 constructor_results_plotly <- highlight_key(constructor_results_merged %>% 
   dplyr::filter(top10 != 'Other') %>% 
@@ -345,6 +350,7 @@ gg <- constructor_results_plotly %>%
   ggplot(aes(year, PointSum, col = constructor, group = constructor)) +
   geom_line(size=1, alpha = .5) +
   geom_point(alpha=.5,size=.2)
+
 labs(x = "Year", y = "constructor") +
   theme_tufte() +
   NULL
@@ -358,7 +364,7 @@ filter <- bscols(filter_select("constructor","Sum of points over years (select a
 bscols(filter)
 ```
 
-```{r}
+```{r, fig.width=10}
 #constructors running sum animated plot
 
 # Top teams running sum by wins/championships
@@ -407,7 +413,7 @@ animate(anim, height = 600, width =1080, nframes = 160, fps = 5)
 ```
 
 ### Top 25 drivers
-```{r warning=FALSE, message=FALSE}
+```{r warning=FALSE, message=FALSE, fig.width=10}
 results_drivers %>% 
   dplyr::select(points, driverRef, forename, surname, nationality, year) %>% 
   tidyr::unite(full_name, c('forename', 'surname'), sep = ' ') %>% 
@@ -427,7 +433,7 @@ results_drivers %>%
   theme(plot.title = element_text(hjust = .5))
 ```
 ## Question B: Is F1 currently being won in qualifying?
-```{r warning=FALSE, message=FALSE}
+```{r warning=FALSE, message=FALSE, fig.width=10}
 quali_races <- left_join(
   results_races %>%
     dplyr::mutate(race_position = positionOrder,
@@ -499,17 +505,159 @@ quali_races %>%
 # This plot is a scatter plot that illustrates the longest time it tool to complete a round in years
 ```{r}
 # Grouped Scatter Plot
-xoxo<- races %>% group_by(round)
-xoxo
-xoxo2<-head(xoxo[order(xoxo$time, decreasing= T),], n = 10)
-xoxo2
-ggplot(xoxo2, aes(x=round, y=year, color=year)) + 
-    geom_point(size=6)+ scale_fill_gradientn(colours=rainbow(100))
- ```
+# xoxo<- races %>% group_by(round)
+# xoxo
+# xoxo2<-head(xoxo[order(xoxo$time, decreasing= T),], n = 10)
+# xoxo2
+# ggplot(xoxo2, aes(x=round, y=year, color=year)) + 
+#     geom_point(size=6)+ scale_fill_gradientn(colours=rainbow(100))
+```
+
 ## Question D - Which F1 circuits provide a more even fight?
-```{r}
 
+#Top 3 teams comparison
 
+To answer the given question, we plot the average results for each team from the top.
+It is highly possible that the circuits where the differences are lower provide more
+even fight.
+```{r, fig.width=10}
+#Data preparation
+
+#lap times with constructors data joining
+# top_times <- left_join(
+#   constructor_results_merged %>%
+#     dplyr::select(raceId, constructor, race_name, date),
+#   lap_times %>%
+#     dplyr::select(driverId, raceId, lap, milliseconds),
+#   by = c('raceId'))
+
+top_times <- 
+  left_join(
+    left_join(
+      left_join(
+        lap_times %>%
+          dplyr::select(-position, -time),
+        results %>%
+          dplyr::select(resultId, raceId, driverId, constructorId),
+        by = c('raceId','driverId')),
+      constructors %>% 
+        dplyr::select(-nationality, -url) %>% 
+        dplyr::rename(constructor_name = name),
+      by = 'constructorId'),
+    races %>% 
+      dplyr::select(raceId, name, year) %>% 
+      dplyr::rename(race_name = name),
+    by = 'raceId')
+
+top_times <- top_times %>% 
+  dplyr::select(-driverId, -lap, -raceId) %>% 
+  dplyr::filter(milliseconds > 0) %>% 
+  dplyr::group_by(race_name, constructorId) %>% 
+  dplyr::filter(milliseconds > quantile(milliseconds, 0.05)) %>% 
+  dplyr::filter(milliseconds < quantile(milliseconds, 0.95)) %>% 
+  dplyr::mutate(scaled_time = (milliseconds-min(milliseconds))/(max(milliseconds)-min(milliseconds))) %>% 
+  dplyr::group_by(race_name, constructorId) %>% 
+  dplyr::mutate(median_time = median(scaled_time))
+
+# Plot colors
+team_colors <- c("Ferrari" = "#cf0e0e", 'Mercedes' = '#1fb1a7',
+                 'Red Bull' = '#00007e', 'McLaren' = '#ff8700')
+
+times_theme <- 
+    theme(
+      legend.position="none",
+      panel.background = element_rect(fill = "#3a3c3d"),
+      panel.grid = element_line(color = '#2e2f30'),
+      panel.grid.major  = element_line(color = '#3a3c3d'),
+      plot.background = element_rect(fill = '#3a3c3d'),
+      axis.text = element_text(color = 'white'),
+      axis.title = element_text(color = 'white'),
+      plot.title = element_text(size = 20, color = 'white', hjust = .5)
+    ) 
+
+```
+
+``` {r, fig.width=10, fig.height=20}
+#Plots 2019
+top_times %>% 
+  dplyr::filter(constructor_name %in% c('Red Bull','Ferrari','Mercedes')) %>%
+  dplyr::filter(year == 2019) %>% 
+  ggplot(aes(x=scaled_time, color=constructor_name)) +
+  geom_density(alpha=0.6, size = 1) +
+  geom_vline(aes(xintercept = median_time, color = constructor_name),linetype="dashed",
+             size = 1) +
+  scale_color_manual(values = team_colors) +
+  times_theme +
+  labs(title = '2019 season results for top 3 teams') +
+  ylab("Number of laps") +
+  xlab("Scaled time") +
+  facet_wrap(~race_name, ncol = 3)
+
+# unique((top_times %>% 
+#          dplyr::filter(year == 2019))[[6]])
+
+#We can see 4 races with most similar times
+similar_results_2019 <- c('Marina Bay Street Circuit','Circuit de Spa-Francorchamps',
+                          'Circuit Gilles Villeneuve','Circuit Paul Ricard')
+```
+
+```{r fig.width=10}
+#Plots 2019 - similar results
+top_times %>% 
+  dplyr::filter(constructor_name %in% c('Red Bull','Ferrari','Mercedes')) %>%
+  dplyr::filter(year == 2019, race_name %in% similar_results_2019) %>% 
+  ggplot(aes(x=scaled_time, color=constructor_name)) +
+  geom_density(alpha=0.6, size = 1) +
+  geom_vline(aes(xintercept = median_time, color = constructor_name),linetype="dashed",
+             size = 1) +
+  scale_color_manual(values = team_colors) +
+  times_theme +
+  labs(title = 'Top 4 of most even races in 2019 season') +
+  ylab("Number of laps") +
+  xlab("Scaled time") +
+  facet_wrap(~race_name, ncol = 2)
+```
+
+``` {r, fig.width=10, fig.height=20}
+#Plots 2020
+top_times %>% 
+  dplyr::filter(constructor_name %in% c('Red Bull','McLaren','Mercedes')) %>%
+  dplyr::filter(year == 2020) %>% 
+  ggplot(aes(x=scaled_time, color=constructor_name)) +
+  geom_density(alpha=0.6, size = 1) +
+  geom_vline(aes(xintercept = median_time, color = constructor_name),linetype="dashed",
+             size = 1) +
+  scale_color_manual(values = team_colors) +
+  times_theme +
+  labs(title = '2020 season results for top 3 teams') +
+  ylab("Number of laps") +
+  xlab("Scaled time") +
+  facet_wrap(~race_name, ncol = 3)
+
+# unique((top_times %>% 
+#          dplyr::filter(year == 2020))[[6]])
+
+#We can see 4 races with most similar times
+similar_results_2020 <- c('Autodromo Internazionale del Mugello',
+                     'Circuit de Spa-Francorchamps', 'Red Bull Ring','Sochi Autodrom')
+```
+
+```{r fig.width=10}
+#Plots 2020 - similar results
+top_times %>% 
+  dplyr::filter(constructor_name %in% c('Red Bull','McLaren','Mercedes')) %>%
+  dplyr::filter(year == 2020, race_name %in% similar_results_2020) %>% 
+  ggplot(aes(x=scaled_time, color=constructor_name)) +
+  geom_density(alpha=0.6, size = 1) +
+  geom_vline(aes(xintercept = median_time, color = constructor_name),linetype="dashed",
+             size = 1) +
+  scale_color_manual(values = team_colors) +
+  times_theme +
+  labs(title = 'Top 4 of most even races in 2020 season') +
+  ylab("Number of laps") +
+  xlab("Scaled time") +
+  facet_wrap(~race_name, ncol = 2)
+```
 ```
 
 
