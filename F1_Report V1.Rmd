@@ -1,0 +1,601 @@
+---
+title: "An interactive Formula 1 Analysis"
+author: "Nomthunzi Moyo and Mateusz Majak"
+date: "22 11 2020"
+output: 
+  html_document:
+    number_sections: true
+    fig_caption: true
+    toc: true
+    fig_width: 7
+    fig_height: 4.5
+    theme: cosmo
+    highlight: tango
+    code_folding: hide
+runtime: shiny
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,comment = NA,message = FALSE,warning = FALSE,fig.width=10)
+```
+# Introduction
+Formula 1 (a.k.a. F1 or Formula One) is the highest class of single-seater auto racing sanctioned by the Fédération Internationale de l'Automobile (FIA) and owned by the Formula One Group. The FIA Formula One World Championship has been one of the premier forms of racing around the world since its inaugural season in 1950. The word "formula" in the name refers to the set of rules to which all participants' cars must conform. A Formula One season consists of a series of races, known as Grands Prix, which take place worldwide on purpose-built circuits and on public roads.
+
+"Races are won at the track. Championships are won at the factory." - Mercedes (2019).
+With the amount of data being captured, analyzed and used to design, build and drive the Formula 1 cars is astounding. It is a global sport being followed by millions of people worldwide and it is very fascinating to see drivers pushing their limit in these vehicles to become the fastest racers in the world!
+
+# About the dataset
+The dataset used in this project consists of information about F1 races statistics
+from 1950 until the latest 2020 season. It was shared by Vopani on the Kaggle 
+platform and is available [here](https://www.kaggle.com/rohanrao/formula-1-world-championship-1950-2020).
+The whole data comes from [ergast website](http://ergast.com/mrd/) and is divided into
+13 csv files:
+
+* circuits
+* constructor_results
+* constructor_standings
+* constructors
+* driver_standings
+* drivers
+* lap_times
+* pit_stops
+* qualifying
+* races
+* results
+* seasons
+* status
+
+It is a real challenge to compare drivers, cars and teams, considering very complex structure of the car and the number of changing factors on the track.
+
+With such amount of data, we will try to answer the following questions:
+
+* **How has the competition and level of F1 changed over the years?**
+* **Is F1 currently being won in qualifying?**
+* **Do the differences between the cars decrease over the years?**
+* **Which F1 circuits provide a more even fight?**
+
+# Preparations {.tabset .tabset-fade .tabset-pills}
+
+## Load libraries
+We load multiple libraries for data manipulation and visualisation together with 
+tools for data modelling.
+
+```{r message = FALSE}
+
+# data manipulation
+library(dplyr)
+library(tidyr)
+
+# Interactivity
+library(plotly)
+library(crosstalk)
+library(DT)
+
+#Shiny App
+library(shiny)
+
+#visualisations
+library(ggplot2)
+library(forcats)
+library(RColorBrewer)
+library(ggthemes)
+library(scales)
+
+#maps
+library(ggmap)
+library(maps)
+
+```
+
+## Load Data
+```{r message = FALSE}
+#results - main csv file
+results <- read.csv('F1_data/results.csv',sep=',', stringsAsFactors=F)
+
+#constructor_results
+constructor_results <- read.csv('F1_data/constructor_results.csv',sep=',', stringsAsFactors=F)
+
+#constructor_standings
+constructor_standings <- read.csv('F1_data/constructor_standings.csv',sep=',', stringsAsFactors=F)
+
+#constructors
+constructors <- read.csv('F1_data/constructors.csv',sep=',', stringsAsFactors=F)
+
+#driver_standings
+driver_standings <- read.csv('F1_data/driver_standings.csv',sep=',', stringsAsFactors=F)
+
+#drivers
+drivers <- read.csv('F1_data/drivers.csv',sep=',', stringsAsFactors=F)
+
+#lap_times
+lap_times <- read.csv('F1_data/lap_times.csv',sep=',', stringsAsFactors=F)
+
+#pit_stops
+pit_stops <- read.csv('F1_data/pit_stops.csv',sep=',', stringsAsFactors=F)
+
+#qualifying
+qualifying <- read.csv('F1_data/qualifying.csv',sep=',', stringsAsFactors=F)
+
+#races
+races <- read.csv('F1_data/races.csv',sep=',', stringsAsFactors=F)
+
+#seasons
+seasons <- read.csv('F1_data/seasons.csv',sep=',', stringsAsFactors=F)
+
+#status
+status <- read.csv('F1_data/status.csv',sep=',', stringsAsFactors=F)
+
+#circuits
+circuits <- read.csv('F1_data/circuits.csv',sep=',', stringsAsFactors=F)
+```
+## Data manipulation
+```{r}
+#results - main csv file
+results$fastestLapSpeed[which(results$fastestLapSpeed=="\\N")] <- NA
+results$fastestLapSpeed <- as.numeric(results$fastestLapSpeed)
+#constructor_results_merged
+constructor_results_merged <- left_join(
+  constructor_results, constructors %>%
+    dplyr::select(-url) %>%
+    dplyr::rename(constructor = name),
+  by = 'constructorId'
+)
+constructor_results_merged <- left_join(
+  constructor_results_merged, races %>%
+    dplyr::rename(race_name = name),
+  by = 'raceId'
+)
+constructor_results_merged <- left_join(
+  constructor_results_merged, constructor_standings %>%
+    dplyr::rename(constructor_points = points),
+  by = c('constructorId','raceId')
+)
+constructor_results_merged$date <- as.Date(constructor_results_merged$date)
+
+#drivers
+drivers <- left_join(
+  drivers %>%
+    dplyr::select(-url), driver_standings,
+  by = 'driverId')
+#lap_times
+#pit_stops
+#qualifying
+#races
+races$date<-as.Date(races$date)
+races$name<-gsub("Grand Prix", "GP", races$name)
+#seasons
+#status
+#connecting main sets
+races <- left_join(
+  races %>%
+    dplyr::select(-name, -url), 
+  circuits %>%
+    dplyr::select(-url),
+  by = 'circuitId')
+
+results_races <- left_join(
+  results %>%
+    dplyr::select(-time), 
+  races %>%
+    dplyr::select(-time),
+  by = 'raceId')
+
+results_drivers <- left_join(
+    results, 
+    drivers %>%
+      dplyr::select(-points, -position, -positionText),
+    by = c('driverId', 'raceId')) 
+    
+results_drivers <- left_join(
+  results_drivers, races %>%
+    dplyr::select(-time),
+  by = 'raceId')
+```
+
+# Data preview {.tabset .tabset-fade .tabset-pills}
+
+## Results
+```{r}
+datatable(results[1:100,] %>%                      
+    arrange(resultId), 
+    options = list(pageLength = 10, scrollX = T)) 
+```
+
+## constructor_results
+```{r}
+datatable(constructor_results[1:100,] %>%                      
+    arrange(constructorResultsId), 
+    options = list(pageLength = 10, scrollX = T)) 
+```
+
+## constructor_standings
+```{r}
+datatable(constructor_standings[1:100,] %>%                      
+    arrange(constructorStandingsId), 
+    options = list(pageLength = 10, scrollX = T)) 
+```
+
+## constructors
+```{r}
+datatable(constructors[1:100,] %>%                      
+    arrange(constructorId), 
+    options = list(pageLength = 10, scrollX = T)) 
+```
+
+## driver_standings
+```{r}
+datatable(driver_standings[1:100,] %>%                      
+    arrange(driverStandingsId), 
+    options = list(pageLength = 10, scrollX = T)) 
+```
+
+## drivers
+```{r}
+datatable(drivers[1:100,] %>%                      
+    arrange(driverId), 
+    options = list(pageLength = 10, scrollX = T)) 
+```
+
+## lap_times
+```{r}
+datatable(lap_times[1:100,] %>%                      
+    arrange(raceId), 
+    options = list(pageLength = 10, scrollX = T)) 
+```
+
+## pit_stops
+```{r}
+datatable(pit_stops[1:100,] %>%                      
+    arrange(raceId), 
+    options = list(pageLength = 10, scrollX = T)) 
+```
+
+## qualifying
+```{r}
+datatable(qualifying[1:100,] %>%                      
+    arrange(qualifyId), 
+    options = list(pageLength = 10, scrollX = T)) 
+```
+
+## races
+```{r}
+datatable(races[1:100,] %>%                      
+    arrange(raceId), 
+    options = list(pageLength = 10, scrollX = T)) 
+```
+
+## seasons
+```{r}
+datatable(seasons[1:100,] %>%                      
+    arrange(year), 
+    options = list(pageLength = 10, scrollX = T)) 
+```
+
+## status
+First 100 rows
+```{r}
+datatable(status[1:100,] %>%                      
+    arrange(statusId), 
+    options = list(pageLength = 10, scrollX = T)) 
+```
+
+# EDA
+
+## F1 across the World
+
+In the last 70 years, the competition in F1 has been held on 6 continents.
+```{r, warning=FALSE, fig.width=10}
+#circuits map
+#Change longitude column name for cohesion
+colnames(results_races)[27] <- "lon"
+# generate worldwide dots
+lat <- data_frame(lat = seq(-90, 90, by = 1.5))
+lon <- data_frame(lon = seq(-170, 180, by = 1.5))
+dots <- merge(lat, lon, all = TRUE)  
+
+# exclude water-based dots 
+dots %>%
+  mutate(country = map.where("world", lon, lat),
+         lakes = map.where("lakes", lon, lat)) %>%
+  filter(!is.na(country) & is.na(lakes)) %>% 
+  select(-lakes) ->
+  dots
+
+# plot the data
+ggplot(dots, aes(x = lon, y = lat)) + 
+geom_point(col = "white", size = 0.25) +
+geom_point(data = results_races, colour = "red", alpha = .009, size = 5) + 
+theme_void() +
+theme(panel.background = element_rect(fill = "#484848"),
+      plot.background = element_rect(fill = "#484848"))
+```
+
+```{r}
+
+```
+
+## Question A - How has the competition and level of F1 changed over the years?
+
+### Running sum of points for top 10 constructors
+```{r}
+# Teams running sum by wins/championships
+top10teams <- (aggregate(points ~ constructor, constructor_results_merged, sum) %>% 
+  arrange(desc(points)) %>% 
+  top_n(10))$constructor
+
+constructor_results_merged$top10 <- ifelse(
+  constructor_results_merged$constructor %in% top10teams,
+  constructor_results_merged$constructor,'Other')
+
+constructor_results_merged %>%
+  dplyr::filter(top10 != 'Other') %>%
+  dplyr::select(year, date, constructor, points) %>%
+  dplyr::group_by(constructor) %>% 
+  dplyr::arrange(date) %>% 
+  dplyr::mutate(point_sum = cumsum(points)) %>%
+  dplyr::group_by(year, constructor) %>%
+  dplyr::summarise(point_sum=max(point_sum)) %>% 
+  ggplot(aes(x = year, y = point_sum, col = constructor, group = constructor)) +
+  geom_line(size=1, alpha = .5) +
+  geom_point(alpha=.5,size=.2)
+
+constructor_results_plotly <- highlight_key(constructor_results_merged %>% 
+  dplyr::filter(top10 != 'Other') %>% 
+  dplyr::select(year, date, constructor, points) %>% 
+  dplyr::group_by(constructor) %>% 
+  dplyr::arrange(date) %>% 
+  dplyr::mutate(PointSum = cumsum(points)) %>% 
+  dplyr::group_by(year, constructor) %>% 
+  dplyr::summarise(PointSum=max(PointSum)))
+
+gg <- constructor_results_plotly %>% 
+  ggplot(aes(year, PointSum, col = constructor, group = constructor)) +
+  geom_line(size=1, alpha = .5) +
+  geom_point(alpha=.5,size=.2)
+labs(x = "Year", y = "constructor") +
+  theme_tufte() +
+  NULL
+
+filter <- bscols(filter_select("constructor","Sum of points over years (select a constructor):",
+                               constructor_results_plotly, ~constructor, 
+                               multiple = TRUE),
+                 ggplotly(gg, dynamicTicks = TRUE),
+                 widths = c(15, 15)
+)
+bscols(filter)
+```
+
+```{r}
+
+```
+From the plot above, we can see that the top racing car constructors of all the time are:
+
+* Ferrari
+* Mclaren
+* Williams
+
+### Top 25 drivers
+```{r warning=FALSE, message=FALSE}
+results_drivers %>% 
+  dplyr::select(points, driverRef, forename, surname, nationality, year) %>% 
+  tidyr::unite(full_name, c('forename', 'surname'), sep = ' ') %>% 
+  dplyr::group_by(full_name) %>% 
+  dplyr::summarise(year_points = sum(points)) %>% 
+  dplyr::filter(year_points > 0) %>% 
+  dplyr::top_n(25, year_points) %>% 
+  dplyr::arrange(year_points) %>% 
+  dplyr::mutate(full_name=factor(full_name, full_name)) %>%
+  ggplot(aes(x=full_name, y=year_points)) +
+  geom_segment( aes(x=full_name, xend=full_name, y=0, yend=year_points), color = 'grey') +
+  geom_point(color = 'red', size = 3) +
+  coord_flip() +
+  labs(x = 'Driver',
+       y = 'Sum of points',
+       title = 'Top 25 drivers by number of points in the career') +
+  theme(plot.title = element_text(hjust = .5))
+```
+
+```{r}
+
+```
+The plot above shows top 25 drivers by cumulative points.Among the 25 drivers, top three drivers are:
+
+* Lewis Hamilton
+* Sebastian Vettel
+* Fernando Alonso.
+
+## Question B: Is F1 currently being won in qualifying?
+```{r warning=FALSE, message=FALSE}
+quali_races <- left_join(
+  results_races %>%
+    dplyr::mutate(race_position = positionOrder,
+                  grid_position = grid) %>% 
+    dplyr::select(driverId, raceId, date, grid_position, race_position),
+  qualifying %>%
+    dplyr::mutate(quali_position = position) %>% 
+    dplyr::select(driverId, raceId, quali_position),
+  by = c('raceId','driverId'))
+#101 points to gain from 1st to 10th place
+# quali_races %>% 
+#   dplyr::select(date, quali_position, race_position)
+
+quali_races %>% 
+  dplyr::select(date, grid_position, race_position) %>%
+  distinct() %>%
+  dplyr::mutate(
+    race_points = case_when(race_position == 1  ~ 25,
+                            race_position == 2  ~ 18,
+                            race_position == 3  ~ 15,
+                            race_position == 4  ~ 12,
+                            race_position == 5  ~ 10,
+                            race_position == 6  ~ 8,
+                            race_position == 7  ~ 6,
+                            race_position == 8  ~ 4,
+                            race_position == 9  ~ 2,
+                            race_position == 10 ~ 1,
+                            TRUE                ~ 0
+                            ),
+    grid_points = case_when(grid_position == 1  ~ 25,
+                            grid_position == 2  ~ 18,
+                            grid_position == 3  ~ 15,
+                            grid_position == 4  ~ 12,
+                            grid_position == 5  ~ 10,
+                            grid_position == 6  ~ 8,
+                            grid_position == 7  ~ 6,
+                            grid_position == 8  ~ 4,
+                            grid_position == 9  ~ 2,
+                            grid_position == 10 ~ 1,
+                            TRUE                ~ 0
+                            )
+    ) %>% 
+  dplyr::mutate(point_difference = race_points - grid_points) %>% 
+  dplyr::select(date, point_difference) %>% 
+  dplyr::filter(point_difference > 0) %>% 
+  dplyr::group_by(date) %>% 
+  dplyr::summarise(won_points_percentage = sum(point_difference)/101) %>% 
+  dplyr::arrange(date) %>%
+  ggplot(aes(x = date, y = won_points_percentage)) +
+  geom_line(size = .5, alpha = .5,  color = 'grey') +
+  geom_point(size = .5, alpha = .9, color = 'grey') +
+  geom_smooth(se = TRUE,
+              color = 'red') +
+  labs(x = 'Year',
+       y = '% of points gain after qualifying',
+       title = 'Percent of additional points gained after qualifying') +
+  scale_x_date(name = paste('Years', substr(min(quali_races$date),1,4),'-',substr(max(quali_races$date),1,4)),
+               date_breaks = "10 years", date_labels = "%Y",
+               date_minor_breaks = "5 years",
+               limits = c(min(quali_races$date), max = max(quali_races$date)),
+               expand=c(0,120)) +
+  scale_y_continuous(labels=scales::percent) +
+  theme(plot.title = element_text(hjust = .5))
+
+
+```
+
+
+## Question C: Do the differences between the cars decrease over the years?
+```{r}
+# Teams running sum by wins/championships
+top10teams <- (aggregate(points ~ constructor, constructor_results_merged, sum) %>% 
+  arrange(desc(points)) %>% 
+  top_n(10))$constructor
+
+constructor_results_merged$top10 <- ifelse(
+  constructor_results_merged$constructor %in% top10teams,
+  constructor_results_merged$constructor,'Other')
+
+constructor_results_merged %>%
+  dplyr::filter(top10 != 'Other') %>%
+  dplyr::select(year, date, constructor, points) %>%
+  dplyr::group_by(constructor) %>% 
+  dplyr::arrange(date) %>% 
+  dplyr::mutate(point_sum = cumsum(points)) %>%
+  dplyr::group_by(year, constructor) %>%
+  dplyr::summarise(point_sum=max(point_sum)) %>% 
+  ggplot(aes(x = year, y = point_sum, col = constructor, group = constructor)) +
+  geom_line(size=1, alpha = .5) +
+  geom_point(alpha=.5,size=.2)+
+  labs(y = 'Cumulative points', x = 'Year (Since 1950)',title = "Yearly cumulative points' trend since 1950 by constructor")+
+  theme_economist()
+
+# Yearly trend
+constructor_results_merged %>%
+  dplyr::filter(top10 != 'Other') %>%
+  dplyr::select(year,points) %>%
+  # dplyr::group_by(constructor) %>% 
+  # dplyr::arrange(date) %>% 
+  # dplyr::mutate(point_sum = cumsum(points)) %>%
+  dplyr::group_by(year) %>%
+  dplyr::summarise(point_sum=sum(points)) %>% 
+  ggplot(aes(x = year, y = point_sum)) +
+  geom_line(size=1, alpha = .5) +
+  geom_point(alpha=.5,size=.2)+
+  labs(y = 'Cumulative points', x = 'Year (Since 1950)',title = 'Yearly trend since 1950')+
+  theme_economist()
+```
+
+```{r}
+
+
+```
+According to this plot, we can see that the differences between the cars increase over the years. Ferrari shows highest difference among other cars. Generally, every car has shown significant improvement of points by year.Hence making the difference increase by year.
+
+## Question D - Which F1 circuits provide a more even fight?
+```{r }
+# lap data
+lap_data = lap_times %>% 
+  select(raceId,time,milliseconds)
+
+# race data
+race_data = races %>% 
+  select(raceId,name)
+
+data_d = left_join(x = lap_data,
+          y = race_data,
+          by = "raceId")
+
+circuit_fight = data_d %>% 
+  group_by(raceId,circuits = name) %>% 
+  summarise(Total_Time = sum(milliseconds)) %>% 
+  arrange(-Total_Time)
+
+circuit_fight %>% 
+  head() %>% 
+  knitr::kable()
+
+# visualization
+circuit_fight %>%
+  head() %>% 
+  ggplot(aes(x = fct_reorder(.f = circuits,.x = Total_Time),y = Total_Time/1000000,fill =circuits))+
+  geom_col(show.legend = FALSE)+
+  coord_flip()+
+  labs(y = 'Total Time (Milliseconds)',x = 'Circuits')+
+  scale_y_continuous(labels = paste(seq(1,350,50),'M',sep = ''),breaks = seq(1,350,50))+
+  theme_economist()
+```
+
+```{r}
+
+```
+## Interpretation
+The top six circuits Which provide a more even fight are: 
+* Circuit Gilles Villeneuve	Total Time (Milliseconds) of 328030664
+
+* Sepang International Circuit	Total Time (Milliseconds) of 227837208
+
+* Korean International Circuit	Total Time (Milliseconds) of 218112478
+
+* AutÃ³dromo JosÃ© Carlos Pace	Total Time (Milliseconds) of 198522976
+
+* Silverstone Circuit	Total Time (Milliseconds) of 166227148
+
+* Marina Bay Street Circuit	Total Time (Milliseconds) of 161001675
+
+## Conclusion
+
+In summary, among the racing drivers, Top three drivers are:
+
+* Lewis Hamilton
+* Sebastian Vettel
+* Fernando Alonso.
+
+Similarly, the top racing car constructors are:
+
+* Ferrari
+* Mclaren
+* Williams
+
+The top six circuits Which provide a more even fight are: 
+
+* Circuit Gilles Villeneuve	Total Time (Milliseconds) of 328030664
+
+* Sepang International Circuit	Total Time (Milliseconds) of 227837208
+
+* Korean International Circuit	Total Time (Milliseconds) of 218112478
+
+* AutÃ³dromo JosÃ© Carlos Pace	Total Time (Milliseconds) of 198522976
+
+* Silverstone Circuit	Total Time (Milliseconds) of 166227148
+
+* Marina Bay Street Circuit	Total Time (Milliseconds) of 161001675
